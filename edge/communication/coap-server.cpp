@@ -107,6 +107,7 @@ class coapServerGateway
             data["Pressure"] = pressure;
             data["Humidity"] = humidity;
             root["SensorData"] = data;
+            stop();
         }
         Json::StreamWriterBuilder builder;
         builder["indentation"] = "";

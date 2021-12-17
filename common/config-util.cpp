@@ -49,11 +49,4 @@ class configUtil {       // The class
     }
 };
 
-int main(void)
-{
-  configUtil config_util("client/config.json");
-  std::cout << config_util.get_bool_value("connection", "observable") << std::endl;
-  std::cout << config_util.get_sensor_threshold("temperature", true) << std::endl;
-}
-
 

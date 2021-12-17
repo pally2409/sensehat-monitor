@@ -1,0 +1,36 @@
+{
+    "connection": {
+        "host": "localhost",
+        "default_port": "5683",
+        "secure_port": "5684",
+        "cert_path": "/home/pi/certs/server/server.crt",
+        "ca_path": "/home/pi/certs/ca/ca.crt",
+        "key_path": "/home/pi/certs/server/server.key",
+        "encrypt": false,
+        "observable": true,
+        "confirmable": false
+    },
+
+    "data": {
+        "sensor_resource": "SensorData",
+        "actuator_resource": "ActuatorData",
+        "temperature": {
+            "threshold": {
+                "lo": 9,
+                "hi": 30
+            }
+        },
+        "pressure": {
+            "threshold": {
+                "lo": 1000,
+                "hi": 1500
+            }
+        },
+        "humidity": {
+            "threshold": {
+                "lo": 15,
+                "hi": 90
+            }
+        }
+    }
+}

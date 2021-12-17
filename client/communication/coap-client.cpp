@@ -6,21 +6,37 @@
 #include <netdb.h>
 #include <string>
 #include <coap3/coap.h>
+#include <atomic>
 #include <iostream>
+#include <algorithm>
+#include <thread>
 #include <jsoncpp/json/json.h>
 #include <common/config-util.h>
+#include "client/actuator/gpio_pwm.h"
 
 using namespace std;
 static unsigned int token = 0;
 coap_context_t *ctx = nullptr;
+
+int MAX_TEMP = 0;
+int MIN_TEMP = 40;
+int MAX_HUMID = 10;
+int MIN_HUMID = 80;
+// Defining atomic int variables so that they can be shared between
+// the main tread and the threads running the PWM.
+std::atomic<int> temperature_duty;
+std::atomic<int> humidity_duty;
 
 class coapClientConnector
 {
     public:
     coapClientConnector(const char* host, const char* port)
     {
+        // Setting host and port values
         host = host;
         port = port;
+
+        //Starting the coap client
         initClient(host, port, dst);
         coap_startup();
     }
@@ -59,7 +75,10 @@ class coapClientConnector
 
         coap_register_response_handler(ctx, [](auto, auto, const coap_pdu_t *received, auto)
 									  {
-                                      coap_show_pdu(LOG_WARNING, received);
+                                      const unsigned char *data;
+                                      size_t data_len;
+                                      coap_get_data(received, &data_len, &data);
+                                      actuate(std::string(reinterpret_cast<const char*>(data)));
                                       return COAP_RESPONSE_OK;
                                       });
 
@@ -80,7 +99,8 @@ class coapClientConnector
         coap_insert_optlist(&optlist_chain, coap_new_optlist(COAP_OPTION_URI_PATH, resource.size(), reinterpret_cast<const uint8_t *>(resource.c_str())));
 
         if(observe)
-		{
+		{   
+            std::cout << "in observer" << std::endl;
           	coap_insert_optlist(&optlist_chain, coap_new_optlist(COAP_OPTION_OBSERVE, COAP_OBSERVE_ESTABLISH, NULL));
         }
 
@@ -139,18 +159,50 @@ class coapClientConnector
 		freeaddrinfo(res);
 		return len;
 	}
+
+    static void actuate(std::string payload)
+    {   
+        Json::CharReaderBuilder builder;
+        Json::CharReader * reader = builder.newCharReader();
+        Json::Value sensor_json;
+        string errors;
+
+        bool parsingSuccessful = reader->parse(payload.c_str(), payload.c_str() + payload.size(), &sensor_json, &errors);
+        delete reader;
+
+        float temperature = sensor_json.get("SensorData", 0).get("Temperature", 0).get("Value", 0).asFloat();
+        float humidity = sensor_json.get("SensorData", 0).get("Humidity", 0).get("Value", 0).asFloat();
+        int pressure = sensor_json.get("SensorData", 0).get("Pressure", 0).get("Value", 0).asInt();
+
+        std::cout << sensor_json << std::endl; 
+        // Logic to change Brighten or damped LED brightness based by
+        // chaning the PWM duty cycle
+        temperature_duty = 100 - ((temperature - MIN_TEMP) * 100 / (MAX_TEMP - MIN_TEMP));
+        humidity_duty  = 100 - ((humidity - MIN_HUMID) * 100 / (MAX_HUMID - MIN_HUMID));
+        // std::cout << temperature_duty << std::endl;        
+    }
+
     private:
-	const char* host;        // Attribute (int variable)
-	const char* port;  // Attribute (string variable)
+    // Variables for coap communication
+	const char* host;
+	const char* port;
 	coap_session_t *session = nullptr;
 	coap_address_t dst;
 	coap_pdu_t *pdu = nullptr;
 };
 
 int main(void)
-{
-  coapClientConnector coapClient("localhost", "5683");
-  coapClient.sendGET("SensorData", false, true);
-  coapClient.sendGET("hello", true, true);
-  while (true) { coap_io_process(ctx, COAP_IO_WAIT); }
+{   
+    // Defining the default PWM duty cycles.
+    temperature_duty = 0;
+    humidity_duty = 0;
+    // Defining the threads to run PWMs
+    // std::thread temperature_led(set_gpio, std::string("21"), std::ref(temperature_duty));
+    // std::thread humidity_led(set_gpio, std::string("22"), std::ref(humidity_duty));
+    coapClientConnector coapClient("localhost", "5683");
+
+    // Get current sensor values
+    coapClient.sendGET("SensorData", true, true);
+
+    while (true) { coap_io_process(ctx, COAP_IO_WAIT); }
 }

@@ -23,7 +23,7 @@ void set_gpio(std::string gpio, std::atomic<int> &duty_cycle)
     close(fd);
     // Opening file using which we will set the value of pin gpio.
     std::string value = std::string() + "/sys/class/gpio/gpio" + gpio + "/value";
-    fd = open("/sys/class/gpio/gpio29/value", O_WRONLY);
+    fd = open(value.c_str(), O_WRONLY);
 
     while(true)
     {
@@ -32,14 +32,12 @@ void set_gpio(std::string gpio, std::atomic<int> &duty_cycle)
             // Turn off LED
             write(fd, "0", 1);
             usleep(PWM_PERIOD);
-            break;
         }
         else if (duty_cycle >= 100)
         {
             // Turn on LED
             write(fd, "1", 1);
             usleep(PWM_PERIOD);
-            break;
         }
         else
         {   

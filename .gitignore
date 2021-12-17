@@ -3,3 +3,5 @@ server
 cl
 .DS_store
 Desktop.ini
+.vscode
+test.cpp

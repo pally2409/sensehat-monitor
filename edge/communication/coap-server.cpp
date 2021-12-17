@@ -9,39 +9,76 @@
 #include <iostream>
 #include <jsoncpp/json/json.h>
 #include <sense_hat.h>
+#include <common/config-util.h>
+#include <common/connection-helper.h>
+#include <unistd.h>
 
 using namespace std;
 coap_resource_t *sensor_resource = NULL;
+char *certificate;
+char *certificate_authority;
+char *private_key;
 
 class coapServerGateway
 {
 	public:
-    coapServerGateway(const char* host, const char* port)
+    coapServerGateway(const char* host, const char* port, bool observable, bool encrypted)
     {
         host = host;
         port = port;
+        observable = observable;
+        encrypted = false;
+
+        std::cout << "Host: " << host << "\nPort: " << port << "\nObservable: " << (observable? "true": "false") << "\nEncrypted: " << (encrypted? "true": "false") << std::endl;
+        // std::cout << "here" << std:endl;
         initServer(host, port, dst);
+        
     }
 
     void initServer(const char* host, const char* port, coap_address_t dst)
     {
+        
+        
         if (resolve_address(host, port, &dst) < 0)
         {
             coap_log(LOG_CRIT, "Failed to resolve address\n");
         }
 
         ctx = coap_new_context(nullptr);
-
+        auto protocol = COAP_PROTO_UDP;
+        
+        if(encrypted) {
+            std::cout << "here" << std::endl;
+            set_certificate(certificate);
+            set_certificate_authority(certificate_authority);
+            set_private_key(private_key);
+            fill_keystore(ctx);
+            protocol = COAP_PROTO_DTLS;
+            std::cout << certificate << certificate_authority << private_key << std::endl;
+            
+        }
+        
+        
         if (!ctx || !(endpoint = coap_new_endpoint(ctx, &dst, COAP_PROTO_UDP)))
         {
-            coap_log(LOG_EMERG, "cannot initialize context\n");
+            
+            coap_log(LOG_EMERG, "Could not initialize context\n");
         }
+        
     }
 
     void startServer()
     {
+        
         coap_startup();
-        while (true) { coap_io_process(ctx, COAP_IO_WAIT); }
+        while (true) { 
+            std::cout << "here" << std::endl;
+            if(sensor_resource!=NULL) {
+                usleep(2000000);
+                coap_resource_notify_observers(sensor_resource, NULL);
+            }
+            coap_io_process(ctx, COAP_IO_WAIT); 
+        }
     }
 
     void stopServer() {
@@ -51,16 +88,19 @@ class coapServerGateway
 
     void registerResource(const char* resourceName)
     {
+        std::cout << "here ub register" << std::endl;
         coap_str_const_t *ruri = coap_make_str_const(resourceName);
         resource = coap_resource_init(ruri, 0);
         coap_resource_set_get_observable(resource, 1);
-
+        sensor_resource = resource;
+        std::cout << sensor_resource << std::endl;
         coap_register_handler(resource, COAP_REQUEST_GET, [](auto, auto, const coap_pdu_t *request, auto, 
                             coap_pdu_t *response)
                             {
                                 coap_show_pdu(LOG_WARNING, request);
                                 coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
                                 auto str = coapServerGateway::getSensorData();
+                                // auto str = "meow";
                                 coap_add_data(response, str.size(), reinterpret_cast<const uint8_t *>(str.c_str()));
                                 coap_show_pdu(LOG_WARNING, response);
                             });
@@ -70,21 +110,20 @@ class coapServerGateway
                             {
                                 coap_show_pdu(LOG_WARNING, request);
                                 coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
-                                auto str = coapServerGateway::getSensorData();
+                                std::string str = "meow";
                                 coap_add_data(response, str.size(), reinterpret_cast<const uint8_t *>(str.c_str()));
                                 coap_show_pdu(LOG_WARNING, response);
-                                coap_str_const_t *uri_path = coap_resource_get_uri_path(curr_resource);
-                                if(coap_string_equal(uri_path, coap_make_str_const("SensorData")))
-                                {
-                                    std::cout << "here";
-                                    coap_resource_notify_observers(sensor_resource, NULL);
-                                }
+                                // coap_str_const_t *uri_path = coap_resource_get_uri_path(curr_resource);
+                                // coap_str_const_t *uri_path = "SensorData";
+                                // std::cout << "here" << std::endl;
+                                // if(sensor_resource!=NULL) {
+                                //     std::cout << "here" << std::endl;
+                                //     coap_resource_notify_observers(sensor_resource, NULL);
+                                // }
+                                
                             });                  
         coap_add_resource(ctx, resource);
-        if(std::strcmp(resourceName, "SensorData"))
-        {
-            sensor_resource = resource;
-        }
+        
     }
 
     static std::string getSensorData()
@@ -154,6 +193,8 @@ class coapServerGateway
     private:
     const char* host;        // Attribute (int variable)
     const char* port;  // Attribute (string variable)
+    bool observable;
+    bool encrypted;
     coap_context_t  *ctx = nullptr;
     coap_address_t dst;
     coap_resource_t *resource = nullptr;
@@ -162,9 +203,26 @@ class coapServerGateway
 
 int main(void)
 {
-    coapServerGateway coapServer("localhost", "5683");
+    configUtil cUtil("edge/config.json");
+    bool encrypted = cUtil.get_bool_value("connection", "encrypt");
+    bool observable = cUtil.get_bool_value("connection", "observable");
+    const char* port;
+    if(encrypted) {
+        port = cUtil.get_string_value("connection", "secure_port").c_str();
+        std::string str_cert = cUtil.get_string_value("connection", "cert_path");
+        certificate = new char[str_cert.length() + 1];
+        strcpy(certificate, str_cert.c_str());
+        std::string str_ca = cUtil.get_string_value("connection", "ca_path");
+        certificate_authority = new char[str_ca.length() + 1];
+        strcpy(certificate_authority, str_ca.c_str());
+        std::string str_pk = cUtil.get_string_value("connection", "key_path");
+        private_key = new char[str_pk.length() + 1];
+        strcpy(private_key, str_pk.c_str());
+    } else {
+        port = cUtil.get_string_value("connection", "default_port").c_str();
+    }
+
+    coapServerGateway coapServer(cUtil.get_string_value("connection", "host").c_str(), port, observable, encrypted);
     coapServer.registerResource("SensorData");
-    coapServer.registerResource("hello");
-    std::cout << coapServer.getSensorData().c_str() << std::endl;
     coapServer.startServer();
 }

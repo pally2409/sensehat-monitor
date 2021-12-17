@@ -8,6 +8,7 @@
 #include <coap3/coap.h>
 #include <iostream>
 #include <jsoncpp/json/json.h>
+#include <common/config-util.h>
 
 using namespace std;
 static unsigned int token = 0;
@@ -26,16 +27,23 @@ class coapClientConnector
     
     void initClient(const char* host, const char* port, coap_address_t dst)
     {
+        auto protocol_type = COAP_PROTO_UDP;
         if (resolve_address(host, port, &dst) < 0)
         {
             coap_log(LOG_CRIT, "Failed to resolve address\n");
         }
 
         ctx = coap_new_context(nullptr);
+        // if(encrypted) {
+        //     protocol_type = COAP_PROTO_DTLS  
+        // }
 
-        if (!ctx || !(session = coap_new_client_session(ctx, nullptr, &dst, COAP_PROTO_UDP)))
+        // if(encrypted == 0) {
+
+        // }
+        if (!ctx || !(session = coap_new_client_session(ctx, nullptr, &dst, protocol_type)))
         {
-            coap_log(LOG_EMERG, "cannot create client session\n");
+            coap_log(LOG_EMERG, "Could not create client session\n");
         }  
     }
 

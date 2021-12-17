@@ -1,4 +1,7 @@
 coap-client
+coap-client-encrypt.cpp
+coap-server-encrypt.cpp
+test-file.cpp
 server
 cl
 .DS_store

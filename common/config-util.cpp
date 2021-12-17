@@ -21,9 +21,7 @@ configUtil::configUtil(const char* file_name)
 std::string configUtil::get_string_value(const char* section, const char* key)
 {
     auto sec = root[section];
-    Json::StreamWriterBuilder builder;
-    builder["indentation"] = "";
-    const std::string val = Json::writeString(builder, sec[key]);
+    auto val = sec[key].asString();
     return val;
 }
 

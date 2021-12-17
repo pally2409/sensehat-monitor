@@ -7,7 +7,7 @@
         "ca_path": "/home/pi/certs/ca/ca.crt",
         "key_path": "/home/pi/certs/server/server.key",
         "encrypt": false,
-        "observable": false,
+        "observable": true,
         "confirmable": false
     },
 

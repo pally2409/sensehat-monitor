@@ -63,7 +63,6 @@ class coapServerGateway
         // Default protocol is UDP, if encrypted set, use DTLS. Load certs if encrypted is sets
         auto protocol = COAP_PROTO_UDP;
         if(this->encrypted == true) {
-            std::cout << "here" << std::endl;
             set_certificate(certificate);
             set_certificate_authority(certificate_authority);
             set_private_key(private_key);
@@ -86,13 +85,12 @@ class coapServerGateway
     {
         coap_startup();
         while (true) { 
+            coap_io_process(ctx, poll_rate * 1000);
             if(sensor_resource!=NULL && observable == true) {
                 // Use the poll rate to determine how often to send the data
-                usleep(poll_rate * 10000000);
                 // Notify observers if observable is set to true
                 coap_resource_notify_observers(sensor_resource, NULL);
-            }
-            coap_io_process(ctx, 5); 
+            } 
         }
     }
 

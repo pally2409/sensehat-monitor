@@ -199,6 +199,6 @@ int main(void)
     }
 
     coapServerGateway coapServer(cUtil.get_string_value("connection", "host").c_str(), port, observable, encrypted);
-    coapServer.registerResource("SensorData");
+    coapServer.registerResource(cUtil.get_string_value("data", "sensor_resource").c_str());
     coapServer.startServer();
 }

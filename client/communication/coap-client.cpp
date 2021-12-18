@@ -1,15 +1,15 @@
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <string>
-#include <coap3/coap.h>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
 #include <atomic>
+#include <string>
 #include <iostream>
 #include <algorithm>
 #include <thread>
+#include <coap3/coap.h>
 #include <jsoncpp/json/json.h>
 #include <common/config-util.h>
 #include "client/actuator/gpio_pwm.h"
@@ -18,10 +18,12 @@ using namespace std;
 static unsigned int token = 0;
 coap_context_t *ctx = nullptr;
 
-int MAX_TEMP = 0;
-int MIN_TEMP = 40;
-int MAX_HUMID = 10;
-int MIN_HUMID = 80;
+// Default min and max values to map for PWM
+int MAX_TEMP = 50;
+int MIN_TEMP = -10;
+int MAX_HUMID = 0;
+int MIN_HUMID = 100;
+
 // Defining atomic int variables so that they can be shared between
 // the main tread and the threads running the PWM.
 std::atomic<int> temperature_duty;
@@ -106,7 +108,6 @@ class coapClientConnector
 
         coap_add_optlist_pdu(pdu, &optlist_chain);
         coap_show_pdu(LOG_WARNING, pdu);
-          /* and send the PDU */
         coap_send(session, pdu);
         coap_io_process(ctx, COAP_IO_WAIT);
     }
@@ -162,12 +163,13 @@ class coapClientConnector
 
     static void actuate(std::string payload)
     {   
+        // Building the json object from the payload
         Json::CharReaderBuilder builder;
         Json::CharReader * reader = builder.newCharReader();
         Json::Value sensor_json;
         string errors;
 
-        bool parsingSuccessful = reader->parse(payload.c_str(), payload.c_str() + payload.size(), &sensor_json, &errors);
+        reader->parse(payload.c_str(), payload.c_str() + payload.size(), &sensor_json, &errors);
         delete reader;
 
         float temperature = sensor_json.get("SensorData", 0).get("Temperature", 0).get("Value", 0).asFloat();
@@ -196,13 +198,20 @@ int main(void)
     // Defining the default PWM duty cycles.
     temperature_duty = 0;
     humidity_duty = 0;
+
+    configUtil config_util("client/config.json");
+
+    MAX_TEMP = config_util.get_sensor_threshold("temperature", true);
+    MIN_TEMP = config_util.get_sensor_threshold("temperature", false);
+    MAX_HUMID = config_util.get_sensor_threshold("humidity", true);
+    MIN_HUMID = config_util.get_sensor_threshold("temperature", false);
+
     // Defining the threads to run PWMs
-    // std::thread temperature_led(set_gpio, std::string("21"), std::ref(temperature_duty));
-    // std::thread humidity_led(set_gpio, std::string("22"), std::ref(humidity_duty));
+    std::thread temperature_led(set_gpio, config_util.get_string_value("gpio_pins", "temperature"), std::ref(temperature_duty));
+    std::thread humidity_led(set_gpio, config_util.get_string_value("gpio_pins", "humidity"), std::ref(humidity_duty));
     coapClientConnector coapClient("localhost", "5683");
 
     // Get current sensor values
     coapClient.sendGET("SensorData", true, true);
-
     while (true) { coap_io_process(ctx, COAP_IO_WAIT); }
 }

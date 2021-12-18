@@ -41,7 +41,6 @@ void set_gpio(std::string gpio, std::atomic<int> &duty_cycle)
         }
         else
         {   
-            std::cout << duty_cycle << std::endl;
             // Turn on LED
             write(fd, "1", 1);
             // Wait for duty cycle

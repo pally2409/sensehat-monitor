@@ -72,12 +72,11 @@ class coapServerGateway
         
         coap_startup();
         while (true) { 
-            std::cout << "here" << std::endl;
             if(sensor_resource!=NULL) {
                 usleep(2000000);
                 coap_resource_notify_observers(sensor_resource, NULL);
             }
-            coap_io_process(ctx, COAP_IO_WAIT); 
+            coap_io_process(ctx, 5); 
         }
     }
 
@@ -88,7 +87,6 @@ class coapServerGateway
 
     void registerResource(const char* resourceName)
     {
-        std::cout << "here ub register" << std::endl;
         coap_str_const_t *ruri = coap_make_str_const(resourceName);
         resource = coap_resource_init(ruri, 0);
         coap_resource_set_get_observable(resource, 1);
@@ -100,28 +98,9 @@ class coapServerGateway
                                 coap_show_pdu(LOG_WARNING, request);
                                 coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
                                 auto str = coapServerGateway::getSensorData();
-                                // auto str = "meow";
                                 coap_add_data(response, str.size(), reinterpret_cast<const uint8_t *>(str.c_str()));
                                 coap_show_pdu(LOG_WARNING, response);
-                            });
-
-        coap_register_handler(resource, COAP_REQUEST_PUT, [](coap_resource_t *curr_resource, auto, const coap_pdu_t *request, auto, 
-                            coap_pdu_t *response)
-                            {
-                                coap_show_pdu(LOG_WARNING, request);
-                                coap_pdu_set_code(response, COAP_RESPONSE_CODE_CONTENT);
-                                std::string str = "meow";
-                                coap_add_data(response, str.size(), reinterpret_cast<const uint8_t *>(str.c_str()));
-                                coap_show_pdu(LOG_WARNING, response);
-                                // coap_str_const_t *uri_path = coap_resource_get_uri_path(curr_resource);
-                                // coap_str_const_t *uri_path = "SensorData";
-                                // std::cout << "here" << std::endl;
-                                // if(sensor_resource!=NULL) {
-                                //     std::cout << "here" << std::endl;
-                                //     coap_resource_notify_observers(sensor_resource, NULL);
-                                // }
-                                
-                            });                  
+                            });                
         coap_add_resource(ctx, resource);
         
     }

@@ -11,6 +11,11 @@
         "confirmable": false
     },
 
+    "gpio_pins": {
+        "temperature": "21",
+        "pressure": "22"
+    },
+
     "data": {
         "sensor_resource": "SensorData",
         "actuator_resource": "ActuatorData",
@@ -29,7 +34,7 @@
         "humidity": {
             "threshold": {
                 "lo": 15,
-                "hi": 90
+                "hi": 110
             }
         }
     }

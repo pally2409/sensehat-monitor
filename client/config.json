@@ -8,7 +8,7 @@
         "key_path": "/home/pi/certs/server/server.key",
         "encrypt": false,
         "observable": true,
-        "confirmable": false
+        "confirmable": true
     },
 
     "gpio_pins": {

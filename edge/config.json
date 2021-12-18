@@ -12,6 +12,7 @@
     },
 
     "data": {
+        "rate": 10,
         "sensor_resource": "SensorData",
         "actuator_resource": "ActuatorData",
         "temp_threshold": {
